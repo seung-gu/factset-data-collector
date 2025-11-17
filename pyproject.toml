@@ -1,0 +1,26 @@
+[project]
+name = "chart-ocr-processor"
+version = "0.1.0"
+description = "차트 이미지에서 분기와 수치를 추출하는 OCR 프로세서"
+requires-python = ">=3.11"
+dependencies = [
+    "easyocr>=1.7.2",
+    "google-cloud-vision>=3.11.0",
+    "numpy>=1.24.0",
+    "opencv-python-headless>=4.12.0.88",
+    "pandas>=2.3.3",
+    "pdfplumber>=0.11.0",
+    "pillow>=12.0.0",
+    "python-dotenv>=1.2.1",
+    "scikit-image>=0.25.2",
+    "scipy>=1.16.3",
+    "torch>=2.9.1",
+    "torchvision>=0.24.1",
+]
+
+[project.scripts]
+chart-ocr-processor = "main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
