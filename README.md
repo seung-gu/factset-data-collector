@@ -1,6 +1,6 @@
-# Chart OCR Processor
+# FactSet Data Collector
 
-A Python application for extracting quarterly EPS (Earnings Per Share) estimates from chart images using OCR and image processing techniques.
+A Python application for extracting quarterly EPS (Earnings Per Share) estimates from FactSet Earnings Insight reports using OCR and image processing techniques.
 
 ## Overview
 
@@ -15,7 +15,7 @@ To address this, this project extracts **point-in-time EPS estimates** from hist
 ## Project Structure
 
 ```
-chart_ocr_processor/
+factset-data-collector/
 ├── src/
 │   └── chart_ocr_processor/
 │       ├── __init__.py

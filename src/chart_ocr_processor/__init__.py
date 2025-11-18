@@ -1,4 +1,4 @@
-"""Chart OCR Processor - Package for extracting quarters and values from chart images."""
+"""FactSet Data Collector - Package for extracting quarterly EPS estimates from FactSet Earnings Insight reports."""
 
 from .processor import process_directory, process_image
 from .google_vision_processor import extract_text_from_image, extract_text_with_boxes

@@ -1,6 +1,6 @@
 # Development Log / Research Journal
 
-This document tracks the development journey, experiments, challenges, and decisions made during the development of the Chart OCR Processor.
+This document tracks the development journey, experiments, challenges, and decisions made during the development of the FactSet Data Collector.
 
 ## Executive Summary
 

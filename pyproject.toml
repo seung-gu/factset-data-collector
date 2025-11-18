@@ -1,7 +1,7 @@
 [project]
-name = "chart-ocr-processor"
+name = "factset-data-collector"
 version = "0.1.0"
-description = "차트 이미지에서 분기와 수치를 추출하는 OCR 프로세서"
+description = "Extract quarterly EPS estimates from FactSet Earnings Insight reports"
 requires-python = ">=3.11"
 dependencies = [
     "easyocr>=1.7.2",
@@ -19,7 +19,10 @@ dependencies = [
 ]
 
 [project.scripts]
-chart-ocr-processor = "main:main"
+factset-data-collector = "main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/chart_ocr_processor"]
 
 [build-system]
 requires = ["hatchling"]
