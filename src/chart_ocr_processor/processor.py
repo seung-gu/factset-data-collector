@@ -148,6 +148,16 @@ def process_directory(
     current_df = existing_df.copy() if existing_df is not None and not existing_df.empty else pd.DataFrame()
     confidence_csv = output_csv.parent / f"{output_csv.stem}_confidence.csv" if output_csv else None
     
+    # Load existing confidence CSV if it exists
+    current_confidence_df = pd.DataFrame()
+    if confidence_csv and confidence_csv.exists():
+        try:
+            current_confidence_df = pd.read_csv(confidence_csv)
+            if not current_confidence_df.empty:
+                current_confidence_df['Report_Date'] = pd.to_datetime(current_confidence_df['Report_Date'])
+        except Exception as e:
+            logger.warning(f"Could not read existing confidence CSV: {e}")
+    
     for idx, image_path in enumerate(image_files, 1):
         print(f"[{idx}/{total_images}] {image_path.name}", end=" ... ")
         
@@ -163,6 +173,9 @@ def process_directory(
             # Merge
             if current_df.empty:
                 current_df = df_wide
+                # Sort quarter columns consistently
+                quarter_cols = sorted([c for c in current_df.columns if c != 'Report_Date'], key=_parse_quarter_for_sort)
+                current_df = current_df[['Report_Date'] + quarter_cols]
             else:
                 df_wide['Report_Date'] = pd.to_datetime(df_wide['Report_Date'])
                 current_df['Report_Date'] = pd.to_datetime(current_df['Report_Date'])
@@ -176,9 +189,15 @@ def process_directory(
                 df_to_save = current_df.copy().assign(Report_Date=lambda x: x['Report_Date'].dt.strftime('%Y-%m-%d'))
                 df_to_save.to_csv(output_csv, index=False)
                 
-                # Confidence CSV: append mode
-                df_confidence.to_csv(confidence_csv, mode='a' if confidence_csv.exists() else 'w', 
-                                    header=not confidence_csv.exists(), index=False)
+                # Confidence CSV: merge and deduplicate (same as main CSV)
+                df_confidence['Report_Date'] = pd.to_datetime(df_confidence['Report_Date'])
+                if current_confidence_df.empty:
+                    current_confidence_df = df_confidence
+                else:
+                    current_confidence_df = pd.concat([current_confidence_df, df_confidence], ignore_index=True).drop_duplicates(subset=['Report_Date'], keep='last').sort_values('Report_Date').reset_index(drop=True)
+                
+                df_confidence_to_save = current_confidence_df.copy().assign(Report_Date=lambda x: x['Report_Date'].dt.strftime('%Y-%m-%d'))
+                df_confidence_to_save.to_csv(confidence_csv, index=False)
                 print(f"✅ {len(current_df)} records")
                 
         except Exception as e:
