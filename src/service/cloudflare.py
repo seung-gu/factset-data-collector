@@ -179,3 +179,28 @@ def file_exists_in_cloud(cloud_path: str) -> bool:
     except Exception:
         return False
 
+
+def list_cloud_files(prefix: str = '') -> list[str]:
+    """List files in Cloudflare R2 bucket with given prefix.
+    
+    Args:
+        prefix: Prefix to filter files (e.g., 'estimates/' for PNG files, 'reports/' for PDFs)
+        
+    Returns:
+        List of file paths (keys) in cloud storage
+    """
+    s3_client = _get_s3_client()
+    if not s3_client:
+        return []
+    
+    try:
+        files = []
+        paginator = s3_client.get_paginator('list_objects_v2')
+        for page in paginator.paginate(Bucket=R2_BUCKET_NAME, Prefix=prefix):
+            if 'Contents' in page:
+                for obj in page['Contents']:
+                    files.append(obj['Key'])
+        return files
+    except Exception:
+        return []
+

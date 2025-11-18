@@ -176,10 +176,10 @@ uv run python main.py --limit 5
 
 #### Option 2: Complete Workflow (actions/workflow.py)
 
-Run the complete automated pipeline (download PDFs → extract PNGs → process images):
+Run the complete automated pipeline for CI/CD environments:
 
 ```bash
-# Run complete workflow
+# Run complete workflow (CI environment only)
 uv run python actions/workflow.py
 ```
 
@@ -190,13 +190,23 @@ uv run python actions/workflow.py
   - Cloud storage is **disabled** (even if R2 credentials are provided)
   - Suitable for development and testing
   - Requires PDFs and PNGs to be downloaded/extracted first
+  - Use individual scripts (`download_factset_pdfs.py`, `extract_eps_charts.py`) for data collection
 
 - **CI/CD Execution** (`actions/workflow.py`):
-  - Automatically enables cloud storage when `CI=true` (GitHub Actions)
-  - Reads/writes CSV files from/to Cloudflare R2
-  - Uploads PDFs to `reports/` and PNGs to `estimates/` in R2 bucket
+  - **Only runs when cloud storage is enabled** (`CI=true` in GitHub Actions)
+  - **Workflow Steps**:
+    1. **Download CSV from cloud**: Downloads existing CSV files to local (artifact) for processing
+    2. **Check for new PDFs**: 
+       - Reads last date from downloaded CSV
+       - Lists existing PDFs in cloud storage (`reports/` folder)
+    3. **Download new PDFs**: 
+       - Downloads only new PDFs from FactSet (not already in cloud)
+       - If no new PDFs found, workflow terminates early
+    4. **Extract PNGs**: Extracts EPS chart pages from new PDFs
+    5. **Process images**: Processes PNGs and updates CSV files (incremental: skips already processed dates)
+    6. **Upload to cloud**: Uploads new PDFs, PNGs, and updated CSV files to cloud storage
+  - All processing uses local (artifact) files, then uploads results to cloud
   - CSV files stored at bucket root (`extracted_estimates.csv`, `extracted_estimates_confidence.csv`)
-  - Falls back to local storage if cloud operations fail
 
 See [scripts/data_collection/README.md](scripts/data_collection/README.md) for detailed workflow documentation.
 
@@ -215,14 +225,16 @@ To run the workflow automatically on GitHub Actions:
    - Runs weekly on Monday at 00:00 UTC (09:00 KST)
    - Can also be triggered manually via "Run workflow" button
 
-3. **Workflow execution**:
-   - Automatically downloads new PDFs from FactSet (incremental: only new PDFs)
-   - Extracts EPS chart pages as PNGs (skips existing files)
-   - Processes images and updates CSV files (skips already processed dates)
-   - Uploads all files to Cloudflare R2:
-     - PDFs → `reports/` folder in R2 bucket
-     - PNGs → `estimates/` folder in R2 bucket
-     - CSV files → Bucket root
+3. **Workflow execution** (automated pipeline):
+   - **Step 0**: Downloads existing CSV files from cloud to local (artifact)
+   - **Step 1**: Checks for new PDFs by comparing cloud storage with FactSet
+   - **Step 2**: Downloads new PDFs from FactSet (only if new ones exist, otherwise terminates)
+   - **Step 3**: Extracts EPS chart pages as PNGs from new PDFs
+   - **Step 4**: Processes images and updates CSV files (incremental: skips already processed dates)
+   - **Step 5**: Uploads new files to Cloudflare R2:
+     - New PDFs → `reports/` folder in R2 bucket
+     - New PNGs → `estimates/` folder in R2 bucket
+     - Updated CSV files → Bucket root
    - Saves CSV results as GitHub Actions artifacts (30-day retention)
 
 4. **Cloud Storage Structure** (R2 Bucket):
@@ -338,9 +350,14 @@ This preprocessing pipeline ensures accurate distinction between actual and esti
 
 **CI/CD Execution (GitHub Actions):**
 - Cloud storage automatically enabled when `CI=true`
-- Files stored in Cloudflare R2 bucket
 - Use `actions/workflow.py` for complete automated pipeline
-- CSV files read/written from/to cloud storage
+- **Workflow Process**:
+  1. Downloads CSV files from cloud to local (artifact) for processing
+  2. Checks cloud storage for existing PDFs to avoid duplicates
+  3. Downloads only new PDFs from FactSet (terminates if none found)
+  4. Processes new PDFs → PNGs → CSV locally (all in artifact)
+  5. Uploads new files back to cloud storage
+- All processing happens locally (artifact), then results uploaded to cloud
 - Incremental updates: Only processes new data based on existing CSV
 
 ### Cloud Storage Integration
