@@ -43,10 +43,16 @@ def process_image(
     try:
         # Perform OCR
         ocr_results = extract_text_with_boxes(image_path)
+        logger.debug(f"OCR results count: {len(ocr_results)}")
+        
+        if not ocr_results:
+            logger.warning(f"No OCR results for image: {image_path}")
+            return []
         
         if use_coordinate_matching:
             # Coordinate-based matching
             matched_results = match_quarters_with_numbers(ocr_results)
+            logger.debug(f"Matched results count: {len(matched_results)}")
             
             if classify_bars:
                 # Bar graph classification
@@ -66,6 +72,10 @@ def process_image(
             # Legacy method (text-based parsing)
             text = extract_text_from_image(image_path)
             results = extract_quarter_eps_pairs(text)
+        
+        if not results:
+            logger.warning(f"No matched results for image: {image_path}")
+            return []
         
         # Add report date
         report_date = get_report_date_from_filename(image_path.name)
@@ -91,7 +101,7 @@ def process_image(
         return processed_results
     
     except Exception as e:
-        logger.error(f"Error processing image: {image_path} - {e}")
+        logger.error(f"Error processing image: {image_path} - {e}", exc_info=True)
         return []
 
 
@@ -164,6 +174,7 @@ def process_directory(
         try:
             results = process_image(image_path, use_coordinate_matching, classify_bars, use_multiple_methods)
             if not results:
+                logger.warning(f"No data extracted from {image_path.name}")
                 print("⚠️  No data")
                 continue
             

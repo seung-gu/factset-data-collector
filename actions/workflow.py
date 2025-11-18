@@ -43,7 +43,7 @@ def main():
         return
     
     # Step 0: Download CSV from cloud
-    print("📥 Step 0: Downloading CSV from cloud...")
+    print("\n\n📥 Step 0: Downloading CSV from cloud...")
     print("-" * 80)
     csv_file = PROJECT_ROOT / "output" / "extracted_estimates.csv"
     confidence_csv_file = PROJECT_ROOT / "output" / "extracted_estimates_confidence.csv"
@@ -64,7 +64,7 @@ def main():
     print()
     
     # Step 1: Check for new PDFs
-    print("🔍 Step 1: Checking for new PDFs...")
+    print("\n\n🔍 Step 1: Checking for new PDFs...")
     print("-" * 80)
     
     # Get last date from CSV
@@ -86,7 +86,7 @@ def main():
     print(f"📦 Found {len(cloud_pdf_names)} PDFs in cloud")
     
     # Download new PDFs
-    print("\n📥 Step 2: Downloading new PDFs from FactSet...")
+    print("\n\n📥 Step 2: Downloading new PDFs from FactSet...")
     print("-" * 80)
     try:
         download_main()
@@ -106,7 +106,7 @@ def main():
         return
     
     # Step 3: Extract PNGs
-    print("🖼️  Step 3: Extracting EPS chart pages...")
+    print("\n\n 🖼️  Step 3: Extracting EPS chart pages...")
     print("-" * 80)
     try:
         extract_main()
@@ -116,11 +116,26 @@ def main():
         return
     
     # Step 4: Process images
-    print("🔍 Step 4: Processing images and extracting data...")
+    print("\n\n 🔍 Step 4: Processing images and extracting data...")
     print("-" * 80)
     try:
+        # Set logging level to INFO for better visibility
+        import logging
+        logging.basicConfig(level=logging.INFO)
+        
         estimates_dir = PROJECT_ROOT / "output" / "estimates"
         output_csv = PROJECT_ROOT / "output" / "extracted_estimates.csv"
+        
+        # Check if Google Cloud credentials are set
+        google_creds = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+        if google_creds:
+            print(f"✅ Google Cloud credentials found: {google_creds}")
+            if Path(google_creds).exists():
+                print(f"✅ Credentials file exists")
+            else:
+                print(f"⚠️  Credentials file not found at: {google_creds}")
+        else:
+            print("⚠️  GOOGLE_APPLICATION_CREDENTIALS not set")
         
         df = process_directory(
             directory=estimates_dir,
@@ -135,7 +150,7 @@ def main():
         return
     
     # Step 5: Upload to cloud
-    print("☁️  Step 5: Uploading results to cloud...")
+    print("\n\n☁️  Step 5: Uploading results to cloud...")
     print("-" * 80)
     
     # Upload new PDFs
