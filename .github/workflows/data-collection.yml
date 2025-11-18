@@ -31,7 +31,39 @@ jobs:
       
       - name: Configure Google Cloud credentials
         run: |
-          python3 -c "import os; open('gen-lang-client-0316337343-f310859556ae.json', 'w').write(os.environ['GOOGLE_APPLICATION_CREDENTIALS_JSON'])"
+          python3 << 'PYTHON'
+          import os
+          import json
+          
+          creds_json = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS_JSON', '')
+          if not creds_json:
+              print("❌ GOOGLE_APPLICATION_CREDENTIALS_JSON is empty")
+              exit(1)
+          
+          # Validate JSON
+          try:
+              json.loads(creds_json)
+              print("✅ JSON is valid")
+          except json.JSONDecodeError as e:
+              print(f"❌ Invalid JSON: {e}")
+              print(f"First 200 chars: {creds_json[:200]}")
+              exit(1)
+          
+          # Write file
+          with open('gen-lang-client-0316337343-f310859556ae.json', 'w', encoding='utf-8') as f:
+              f.write(creds_json)
+          
+          # Verify file was written correctly
+          with open('gen-lang-client-0316337343-f310859556ae.json', 'r', encoding='utf-8') as f:
+              file_content = f.read()
+              try:
+                  json.loads(file_content)
+                  print("✅ File written and verified successfully")
+              except json.JSONDecodeError as e:
+                  print(f"❌ File verification failed: {e}")
+                  print(f"First 200 chars of file: {file_content[:200]}")
+                  exit(1)
+          PYTHON
           echo "GOOGLE_APPLICATION_CREDENTIALS=$PWD/gen-lang-client-0316337343-f310859556ae.json" >> $GITHUB_ENV
         env:
           GOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}
