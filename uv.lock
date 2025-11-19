@@ -365,6 +365,7 @@ name = "factset-data-collector"
 version = "0.2.0"
 source = { editable = "." }
 dependencies = [
+    { name = "boto3" },
     { name = "google-cloud-vision" },
     { name = "numpy" },
     { name = "opencv-python-headless" },
@@ -381,13 +382,10 @@ dev = [
     { name = "pytest" },
     { name = "pytest-cov" },
 ]
-r2 = [
-    { name = "boto3" },
-]
 
 [package.metadata]
 requires-dist = [
-    { name = "boto3", marker = "extra == 'r2'", specifier = ">=1.28.0" },
+    { name = "boto3", specifier = ">=1.28.0" },
     { name = "google-cloud-vision", specifier = ">=3.11.0" },
     { name = "numpy", specifier = ">=1.24.0" },
     { name = "opencv-python-headless", specifier = ">=4.12.0.88" },
@@ -400,7 +398,7 @@ requires-dist = [
     { name = "scikit-image", specifier = ">=0.25.2" },
     { name = "scipy", specifier = ">=1.16.3" },
 ]
-provides-extras = ["r2", "dev"]
+provides-extras = ["dev"]
 
 [[package]]
 name = "google-api-core"

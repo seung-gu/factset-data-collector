@@ -38,7 +38,7 @@ def main() -> None:
     print("=" * 80)
     print(f"✅ Complete: {len(pdfs)} PDFs downloaded to {output_dir}")
     print("=" * 80)
-
+    
 
 if __name__ == '__main__':
     main()

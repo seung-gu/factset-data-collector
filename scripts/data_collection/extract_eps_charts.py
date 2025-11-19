@@ -23,12 +23,12 @@ def main() -> None:
     
     print("=" * 80)
     print("EPS Chart Extractor (CLI)")
-    print("=" * 80)
+print("=" * 80)
     print()
     
     # Get PDF files
     pdf_files = sorted(pdf_dir.glob("*.pdf"), reverse=True)
-    
+                
     if not pdf_files:
         print(f"⚠️  No PDF files found in {pdf_dir}")
         print(f"   Please run 'uv run python scripts/data_collection/download_factset_pdfs.py' first.")
@@ -36,7 +36,7 @@ def main() -> None:
     
     # Extract charts
     charts = extract_charts(pdf_files, outpath=output_dir)
-    
+                    
     print()
     print("=" * 80)
     print(f"✅ Complete: {len(charts)} charts extracted to {output_dir}")

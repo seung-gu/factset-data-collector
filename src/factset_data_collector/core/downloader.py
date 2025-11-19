@@ -15,8 +15,8 @@ BASE_URL = "https://advantage.factset.com/hubfs/Website/Resources%20Section/Rese
 def download_pdfs(
     start_date: datetime | None = None,
     end_date: datetime | None = None,
-    outpath: Path | str | None = None,
-    rate_limit: float = 0.05
+    rate_limit: float = 0.05,
+    skip_existing: set[str] | None = None
 ) -> list[dict]:
     """Download FactSet Earnings Insight PDFs.
     
@@ -25,8 +25,8 @@ def download_pdfs(
     Args:
         start_date: Start date for download (default: 2016-01-01)
         end_date: End date for download (default: today)
-        outpath: Output directory path for PDFs (default: current directory / factset_pdfs)
         rate_limit: Wait time between requests in seconds (default: 0.05)
+        skip_existing: Set of existing filenames to skip
         
     Returns:
         List of dictionaries containing download information:
@@ -34,7 +34,8 @@ def download_pdfs(
         - 'format': Date format used (MMDDYY or MMDDYYYY)
         - 'url': Download URL
         - 'size_kb': File size in KB
-        - 'filename': Path to downloaded file
+        - 'filename': Filename (without path)
+        - 'content': PDF file content (bytes)
         
     Note:
         PDFs are available from 2016 onwards. If start_date is before 2016,
@@ -52,21 +53,12 @@ def download_pdfs(
         print(f"⚠️  Warning: PDFs are only available from 2016 onwards. Adjusting start_date to 2016-01-01.")
         start_date = min_date
     
-    # Set output directory
-    if outpath is None:
-        outpath = Path.cwd() / "factset_pdfs"
-    elif isinstance(outpath, str):
-        outpath = Path(outpath)
-    
-    outpath.mkdir(parents=True, exist_ok=True)
-    
     found_pdfs: list[dict] = []
     current = end_date
     test_count = 0
     
     print("🔍 FactSet Earnings Insight PDF reverse search and download")
     print(f"Period: {end_date.date()} → {start_date.date()} (reverse)")
-    print(f"Output directory: {outpath}")
     print("=" * 80)
     
     while current >= start_date:
@@ -89,18 +81,19 @@ def download_pdfs(
                         size_kb = len(content) / 1024
                         
                         # Filename
-                        filename = outpath / f"EarningsInsight_{current.strftime('%Y%m%d')}_{fmt}.pdf"
+                        filename = f"EarningsInsight_{current.strftime('%Y%m%d')}_{fmt}.pdf"
                         
-                        # Save locally
-                        with open(filename, 'wb') as f:
-                            f.write(content)
+                        # Skip if already exists in cloud
+                        if skip_existing and filename in skip_existing:
+                            continue
                         
                         found_pdfs.append({
                             'date': current.strftime("%Y-%m-%d"),
                             'format': fmt,
                             'url': url,
                             'size_kb': size_kb,
-                            'filename': str(filename)
+                            'filename': filename,
+                            'content': content
                         })
                         
                         print(f"✅ {current.strftime('%Y-%m-%d')}: {fmt:12s} | {size_kb:6.1f} KB | Download complete")

@@ -110,88 +110,66 @@ def main():
     print("-" * 80)
     print(" 📥 Step 2: Downloading new PDFs from FactSet...")
     
+    import tempfile
+    
     try:
-        pdf_dir = PROJECT_ROOT / "output" / "factset_pdfs"
         pdfs = download_pdfs(
             start_date=download_start_date,
             end_date=datetime.now(),
-            outpath=pdf_dir,
-            rate_limit=0.05
+            rate_limit=0.05,
+            skip_existing=cloud_pdf_names
         )
         
-        # Check if any new PDFs were downloaded
-        local_pdfs = list(pdf_dir.glob("*.pdf")) if pdf_dir.exists() else []
-        new_pdfs = [p for p in local_pdfs if p.name not in cloud_pdf_names]
-        
-        if not new_pdfs:
+        if not pdfs:
             print("\n✅ No new PDFs to process. Workflow complete!")
             return
         
-        print(f"✅ Downloaded {len(new_pdfs)} new PDF(s)\n")
+        print(f"✅ Downloaded {len(pdfs)} new PDF(s)\n")
+        
+        # Save PDFs to temp files and extract PNGs
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            tmp_path = Path(tmp_dir)
+            pdf_files = []
+            
+            for pdf_info in pdfs:
+                pdf_path = tmp_path / pdf_info['filename']
+                pdf_path.write_bytes(pdf_info['content'])
+                pdf_files.append(pdf_path)
+            
+            # Step 3: Extract PNGs
+            print("-" * 80)
+            print(" 🖼️  Step 3: Extracting EPS chart pages...")
+            
+            chart_data = extract_charts(pdf_files)
+            print(f"✅ PNG extraction complete: {len(chart_data)} charts\n")
+            
+            # Save PNGs to temp files for processing
+            chart_files = [
+                (tmp_path / filename).write_bytes(image_bytes) or (tmp_path / filename)
+                for filename, image_bytes in chart_data
+            ]
+            
+            # Step 4: Process images
+            print("-" * 80)
+            print(" 🔍 Step 4: Processing images and extracting data...")
+            df_main, df_confidence = process_images(directory=tmp_path)
+            print(f"✅ Image processing complete: {len(df_main)} records\n")
+            
+            # Step 5: Upload to cloud
+            print("-" * 80)
+            print(" ☁️  Step 5: Uploading results to cloud...")
+            
+            uploaded_pdfs = sum(1 for p in pdf_files if upload_to_cloud(p, f"reports/{p.name}"))
+            uploaded_pngs = sum(1 for p in chart_files if upload_to_cloud(p, f"estimates/{p.name}"))
+            
+            from src.factset_data_collector.utils.cloudflare import write_csv_to_cloud
+            write_csv_to_cloud(df_main, "extracted_estimates.csv")
+            write_csv_to_cloud(df_confidence, "extracted_estimates_confidence.csv")
+            
+            print(f"✅ Uploaded {uploaded_pdfs} PDF(s), {uploaded_pngs} PNG(s) to cloud")
     except Exception as e:
         print(f"❌ PDF download failed: {e}\n")
         return
-    
-    # Step 3: Extract PNGs
-    print("-" * 80)
-    print(" 🖼️  Step 3: Extracting EPS chart pages...")
-    
-    try:
-        estimates_dir = PROJECT_ROOT / "output" / "estimates"
-        charts = extract_charts(local_pdfs, outpath=estimates_dir)
-        print(f"✅ PNG extraction complete: {len(charts)} charts\n")
-    except Exception as e:
-        print(f"❌ PNG extraction failed: {e}\n")
-        return
-    
-    # Step 4: Process images (returns tuple of DataFrames)
-    print("-" * 80)
-    print(" 🔍 Step 4: Processing images and extracting data...")
-    
-    try:
-        df_main, df_confidence = process_images(directory=estimates_dir)
-        print(f"✅ Image processing complete: {len(df_main)} records\n")
-    except Exception as e:
-        print(f"❌ Image processing failed: {e}\n")
-        return
-    
-    # Step 5: Upload to cloud
-    print("-" * 80)
-    print(" ☁️  Step 5: Uploading results to cloud...")
-    
-    # Upload new PDFs
-    uploaded_pdfs = 0
-    if pdf_dir.exists():
-        for pdf_file in pdf_dir.glob("*.pdf"):
-            if pdf_file.name not in cloud_pdf_names:
-                cloud_path = f"reports/{pdf_file.name}"
-                if upload_to_cloud(pdf_file, cloud_path):
-                    uploaded_pdfs += 1
-    print(f"✅ Uploaded {uploaded_pdfs} PDF(s) to cloud")
-    
-    # Upload new PNGs
-    uploaded_pngs = 0
-    if estimates_dir.exists():
-        cloud_pngs = {Path(p).name for p in list_cloud_files('estimates/')}
-        for png_file in estimates_dir.glob("*.png"):
-            if png_file.name not in cloud_pngs:
-                cloud_path = f"estimates/{png_file.name}"
-                if upload_to_cloud(png_file, cloud_path):
-                    uploaded_pngs += 1
-    print(f"✅ Uploaded {uploaded_pngs} PNG(s) to cloud")
-    
-    # Upload CSVs to public bucket
-    from src.factset_data_collector.utils.cloudflare import write_csv_to_cloud
-    
-    if write_csv_to_cloud(df_main, "extracted_estimates.csv"):
-        print("✅ Uploaded extracted_estimates.csv to public bucket")
-    else:
-        print("⚠️  Failed to upload extracted_estimates.csv")
-    
-    if write_csv_to_cloud(df_confidence, "extracted_estimates_confidence.csv"):
-        print("✅ Uploaded extracted_estimates_confidence.csv to public bucket")
-    else:
-        print("⚠️  Failed to upload extracted_estimates_confidence.csv")
     
     print()
     print("=" * 80)

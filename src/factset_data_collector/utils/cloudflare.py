@@ -38,7 +38,11 @@ PUBLIC_BUCKET_ENABLED = CLOUD_STORAGE_ENABLED and bool(R2_PUBLIC_BUCKET_NAME)
 
 def _get_s3_client():
     """Get S3 client for R2."""
-    if not CLOUD_STORAGE_ENABLED or not boto3 or not Config:
+    if not CLOUD_STORAGE_ENABLED:
+        print(f"CLOUD_STORAGE_ENABLED is False")
+        return None
+    if not boto3 or not Config:
+        print(f"boto3 or Config not available: boto3={boto3}, Config={Config}")
         return None
     
     try:
@@ -49,7 +53,8 @@ def _get_s3_client():
             aws_secret_access_key=R2_SECRET_ACCESS_KEY,
             config=Config(signature_version='s3v4')
         )
-    except Exception:
+    except Exception as e:
+        print(f"Error creating S3 client: {e}")
         return None
 
 
@@ -108,7 +113,8 @@ def read_csv_from_cloud(cloud_path: str) -> pd.DataFrame | None:
     
     try:
         url = f"{R2_PUBLIC_URL}/{cloud_path}"
-        with urllib.request.urlopen(url, timeout=10) as response:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=10) as response:
             return pd.read_csv(io.BytesIO(response.read()))
     except Exception:
         return None
@@ -182,6 +188,7 @@ def list_cloud_files(prefix: str = '') -> list[str]:
                 for obj in page['Contents']:
                     files.append(obj['Key'])
         return files
-    except Exception:
+    except Exception as e:
+        print(f"Error listing cloud files (bucket={R2_BUCKET_NAME}, prefix={prefix}): {e}")
         return []
 
