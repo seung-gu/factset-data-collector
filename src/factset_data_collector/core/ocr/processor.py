@@ -8,6 +8,7 @@ import cv2
 import pandas as pd
 
 from src.factset_data_collector.utils.csv_storage import read_csv
+from src.factset_data_collector.utils.cloudflare import read_csv_from_cloud
 from .bar_classifier import classify_all_bars
 from .coordinate_matcher import match_quarters_with_numbers
 from .google_vision_processor import extract_text_from_image, extract_text_with_boxes
@@ -90,119 +91,88 @@ def process_image(image_path: Path) -> list[dict]:
         return []
 
 
-def process_directory(
-    directory: Path,
-    output_csv: Path | None = None,
-    limit: int | None = None
-) -> pd.DataFrame:
+def _load_existing_data() -> tuple[pd.DataFrame | None, set[str]]:
+    """Load existing data from public URL and get processed dates."""
+    existing_df = read_csv_from_cloud("extracted_estimates.csv")
+    processed_dates = set()
+    
+    if existing_df is not None and not existing_df.empty:
+        existing_df = existing_df.drop(columns=['Confidence'], errors='ignore')
+        existing_df['Report_Date'] = pd.to_datetime(existing_df['Report_Date'])
+        processed_dates = set(existing_df['Report_Date'].dt.strftime('%Y%m%d'))
+    
+    return existing_df, processed_dates
+
+
+def _get_images_to_process(directory: Path, processed_dates: set[str], limit: int | None) -> list[Path]:
+    """Get list of images to process (exclude already processed ones)."""
+    all_images = sorted(directory.glob('*.png'))
+    new_images = [img for img in all_images if img.stem not in processed_dates]
+    
+    if limit:
+        new_images = new_images[:limit]
+    
+    return new_images
+
+
+def _merge_data(current_df: pd.DataFrame, new_df: pd.DataFrame) -> pd.DataFrame:
+    """Merge new data with existing data."""
+    if current_df.empty:
+        result_df = new_df
+    else:
+        new_df['Report_Date'] = pd.to_datetime(new_df['Report_Date'])
+        current_df['Report_Date'] = pd.to_datetime(current_df['Report_Date'])
+        result_df = pd.concat([current_df, new_df], ignore_index=True)\
+            .drop_duplicates(subset=['Report_Date'], keep='last')\
+            .sort_values('Report_Date')\
+            .reset_index(drop=True)
+    
+    # Sort quarter columns
+    quarter_cols = sorted([c for c in result_df.columns if c != 'Report_Date'], key=_parse_quarter_for_sort)
+    return result_df[['Report_Date'] + quarter_cols]
+
+
+def process_directory(directory: Path, limit: int | None = None) -> pd.DataFrame:
     """Process all images in a directory.
     
     Args:
         directory: Directory path containing images
-        output_csv: CSV file path to save results (None to skip saving)
         limit: Maximum number of images to process (None to process all)
         
     Returns:
-        DataFrame containing extracted data
+        DataFrame with extracted data (Report_Date + quarter columns)
     """
-    # Load existing CSV to check processed dates (from public URL or local)
-    existing_df = None
-    processed_dates = set()
-    if output_csv:
-        try:
-            # Try reading from public URL first, then fallback to local
-            cloud_path = output_csv.name
-            existing_df = read_csv(cloud_path, output_csv)
-            if existing_df is not None:
-                existing_df = existing_df.drop(columns=['Confidence'], errors='ignore')
-                if not existing_df.empty:
-                    existing_df['Report_Date'] = pd.to_datetime(existing_df['Report_Date'])
-                    processed_dates = set(existing_df['Report_Date'].dt.strftime('%Y%m%d'))
-                    logger.info(f"Found existing CSV with {len(existing_df)} records")
-        except Exception as e:
-            logger.warning(f"Could not read existing CSV: {e}")
+    # Load existing data
+    existing_df, processed_dates = _load_existing_data()
     
-    # Filter images: only process new ones
-    image_files = [img for img in sorted(directory.glob('*.png')) if img.stem not in processed_dates]
+    # Get images to process
+    image_files = _get_images_to_process(directory, processed_dates, limit)
     
-    if limit:
-        image_files = image_files[:limit]
     if not image_files:
         if not existing_df and not list(directory.glob('*.png')):
             print(f"\n⚠️  No PNG images found in {directory}")
-            print(f"   Please run 'uv run python scripts/data_collection/extract_eps_charts.py' first to extract PNGs from PDFs.")
         return existing_df if existing_df is not None else pd.DataFrame(columns=['Report_Date'])
     
-    total_images = len(image_files)
-    print(f"\n🔄 Processing {total_images} new images...")
-    logger.info(f"Processing {total_images} new images")
-    
+    # Process images
+    print(f"\n🔄 Processing {len(image_files)} new images...")
     current_df = existing_df.copy() if existing_df is not None and not existing_df.empty else pd.DataFrame()
-    confidence_csv = output_csv.parent / f"{output_csv.stem}_confidence.csv" if output_csv else None
-    
-    # Load existing confidence CSV if it exists (from public URL or local)
-    current_confidence_df = pd.DataFrame()
-    if confidence_csv:
-        try:
-            # Try reading from public URL first, then fallback to local
-            confidence_cloud_path = confidence_csv.name
-            loaded_confidence_df = read_csv(confidence_cloud_path, confidence_csv)
-            if loaded_confidence_df is not None and not loaded_confidence_df.empty:
-                current_confidence_df = loaded_confidence_df.copy()
-                current_confidence_df['Report_Date'] = pd.to_datetime(current_confidence_df['Report_Date'])
-                logger.info(f"Loaded existing confidence CSV with {len(current_confidence_df)} records")
-            else:
-                logger.info("No existing confidence CSV found, starting fresh")
-        except Exception as e:
-            logger.warning(f"Could not read existing confidence CSV: {e}")
     
     for idx, image_path in enumerate(image_files, 1):
-        print(f"[{idx}/{total_images}] {image_path.name}", end=" ... ")
+        print(f"[{idx}/{len(image_files)}] {image_path.name}", end=" ... ")
         
         try:
             results = process_image(image_path)
             if not results:
-                logger.warning(f"No data extracted from {image_path.name}")
                 print("⚠️  No data")
                 continue
             
-            df_wide = convert_to_wide_format(pd.DataFrame(results))
-            df_confidence = calculate_confidence_dataframe(df_wide, pd.DataFrame(results))
-            
-            # Merge
-            if current_df.empty:
-                current_df = df_wide
-                # Sort quarter columns consistently
-                quarter_cols = sorted([c for c in current_df.columns if c != 'Report_Date'], key=_parse_quarter_for_sort)
-                current_df = current_df[['Report_Date'] + quarter_cols]
-            else:
-                df_wide['Report_Date'] = pd.to_datetime(df_wide['Report_Date'])
-                current_df['Report_Date'] = pd.to_datetime(current_df['Report_Date'])
-                current_df = pd.concat([current_df, df_wide], ignore_index=True).drop_duplicates(subset=['Report_Date'], keep='last').sort_values('Report_Date').reset_index(drop=True)
-                quarter_cols = sorted([c for c in current_df.columns if c != 'Report_Date'], key=_parse_quarter_for_sort)
-                current_df = current_df[['Report_Date'] + quarter_cols]
-            
-            # Merge confidence data (accumulate across all images)
-            df_confidence['Report_Date'] = pd.to_datetime(df_confidence['Report_Date'])
-            if current_confidence_df.empty:
-                current_confidence_df = df_confidence.copy()
-            else:
-                current_confidence_df = pd.concat([current_confidence_df, df_confidence], ignore_index=True).drop_duplicates(subset=['Report_Date'], keep='last').sort_values('Report_Date').reset_index(drop=True)
-            
-            # Save (local only) - save after each image to preserve progress
-            if output_csv:
-                current_df['Report_Date'] = pd.to_datetime(current_df['Report_Date'])
-                df_to_save = current_df.copy().assign(Report_Date=lambda x: x['Report_Date'].dt.strftime('%Y-%m-%d'))
-                df_to_save.to_csv(output_csv, index=False)
-                
-                # Save confidence CSV (accumulated across all processed images)
-                df_confidence_to_save = current_confidence_df.copy().assign(Report_Date=lambda x: x['Report_Date'].dt.strftime('%Y-%m-%d'))
-                df_confidence_to_save.to_csv(confidence_csv, index=False)
-                print(f"✅ {len(current_df)} records (confidence: {len(current_confidence_df)} records)")
+            new_df = convert_to_wide_format(pd.DataFrame(results))
+            current_df = _merge_data(current_df, new_df)
+            print("✅")
                 
         except Exception as e:
             print(f"❌ {e}")
-            logger.error(f"Error processing {image_path}: {e}")
+            logger.error(f"Error: {e}")
     
     print(f"\n📊 Complete: {len(current_df)} total records\n")
     

@@ -141,7 +141,6 @@ def _get_quarter_eps_sum(
 
 
 def calculate_pe_ratio(
-    csv_path: Path | str | None = None,
     price_data: pd.DataFrame | dict | None = None,
     type: Literal['forward', 'mix', 'trailing-like'] = 'forward',
     output_csv: Path | str | None = None
@@ -155,8 +154,6 @@ def calculate_pe_ratio(
     - trailing-like: Q[-3:1] - Last 3 quarters before and report date (take 3 before, include report date)
     
     Args:
-        csv_path: Path to CSV file containing EPS estimates. If None, automatically loads from cloud
-                  (extracted_estimates.csv) or local storage. Can be Path, str, or None.
         price_data: Stock price data. Can be:
             - DataFrame with columns: Date (or Report_Date), Price
             - Dict mapping dates (YYYY-MM-DD) to prices
@@ -179,29 +176,17 @@ def calculate_pe_ratio(
     Note:
         Stock prices are matched to the most recent price on or before the report date.
         If output_csv is provided, results are automatically saved to CSV.
-        If csv_path is None, the function automatically tries to load from cloud storage first,
-        then falls back to local storage (extracted_estimates.csv).
+        EPS data is always loaded from public URL.
     """
-    # Read EPS CSV - auto-load from cloud/local if csv_path is None
-    if csv_path is None:
-        # Auto-load from cloud (extracted_estimates.csv)
-        # Use temp path since read_csv requires local_path parameter
-        temp_path = Path(tempfile.gettempdir()) / "extracted_estimates.csv"
-        df_eps = read_csv("extracted_estimates.csv", temp_path)
-        
-        if df_eps is None:
-            raise FileNotFoundError(
-                "CSV file not found. Please provide csv_path or ensure extracted_estimates.csv "
-                "exists in cloud storage."
-            )
-    else:
-        # Use provided csv_path (try cloud first, then local)
-        if isinstance(csv_path, str):
-            csv_path = Path(csv_path)
-        
-        df_eps = read_csv(None, csv_path)
-        if df_eps is None:
-            raise FileNotFoundError(f"CSV file not found: {csv_path}")
+    # Auto-load from public URL
+    temp_path = Path(tempfile.gettempdir()) / "extracted_estimates.csv"
+    df_eps = read_csv("extracted_estimates.csv", temp_path)
+    
+    if df_eps is None:
+        raise FileNotFoundError(
+            "CSV file not found in public URL. Please ensure extracted_estimates.csv "
+            "exists at https://pub-62707afd3ebb422aae744c63c49d36a0.r2.dev/extracted_estimates.csv"
+        )
     
     df_eps['Report_Date'] = pd.to_datetime(df_eps['Report_Date'])
     

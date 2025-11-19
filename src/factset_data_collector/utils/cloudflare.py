@@ -1,4 +1,4 @@
-"""Cloudflare R2 storage utilities for uploading files."""
+"""Cloudflare R2 storage utilities."""
 
 import io
 import os
@@ -16,32 +16,29 @@ except ImportError:
 
 load_dotenv()
 
-# Cloudflare R2 settings
-R2_BUCKET_NAME = os.getenv('R2_BUCKET_NAME', '')  # Private bucket (PDF/PNG)
-R2_PUBLIC_BUCKET_NAME = os.getenv('R2_PUBLIC_BUCKET_NAME', '')  # Public bucket (CSV)
+# R2 credentials
+R2_BUCKET_NAME = os.getenv('R2_BUCKET_NAME', '')  # Private (PDF/PNG)
+R2_PUBLIC_BUCKET_NAME = os.getenv('R2_PUBLIC_BUCKET_NAME', '')  # Public (CSV)
 R2_ACCOUNT_ID = os.getenv('R2_ACCOUNT_ID', '')
 R2_ACCESS_KEY_ID = os.getenv('R2_ACCESS_KEY_ID', '')
 R2_SECRET_ACCESS_KEY = os.getenv('R2_SECRET_ACCESS_KEY', '')
 
-# Enable cloud storage in CI or if explicitly enabled
-_has_credentials = all([R2_BUCKET_NAME, R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY])
-_has_public_bucket = bool(R2_PUBLIC_BUCKET_NAME)
-_is_ci = os.getenv('CI', '').lower() == 'true'
-_explicit_enabled = os.getenv('CLOUD_STORAGE_ENABLED', '').lower() == 'true'
-_explicit_disabled = os.getenv('CLOUD_STORAGE_ENABLED', '').lower() == 'false'
+# Public URL for CSV files (no auth needed)
+R2_PUBLIC_URL = "https://pub-62707afd3ebb422aae744c63c49d36a0.r2.dev"
 
-CLOUD_STORAGE_ENABLED = (_is_ci or _explicit_enabled) and _has_credentials and not _explicit_disabled
-PUBLIC_BUCKET_ENABLED = (_is_ci or _explicit_enabled) and _has_credentials and _has_public_bucket and not _explicit_disabled
+# Cloud storage flags
+_has_creds = all([R2_BUCKET_NAME, R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY])
+_is_ci = os.getenv('CI', '').lower() == 'true'
+_enabled = os.getenv('CLOUD_STORAGE_ENABLED', '').lower() == 'true'
+_disabled = os.getenv('CLOUD_STORAGE_ENABLED', '').lower() == 'false'
+
+CLOUD_STORAGE_ENABLED = (_is_ci or _enabled) and _has_creds and not _disabled
+PUBLIC_BUCKET_ENABLED = CLOUD_STORAGE_ENABLED and bool(R2_PUBLIC_BUCKET_NAME)
 
 
 def _get_s3_client():
-    """Get configured S3 client for R2."""
-    if not CLOUD_STORAGE_ENABLED:
-        return None
-    if not all([R2_BUCKET_NAME, R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY]):
-        return None
-    
-    if boto3 is None or Config is None:
+    """Get S3 client for R2."""
+    if not CLOUD_STORAGE_ENABLED or not boto3 or not Config:
         return None
     
     try:
@@ -52,7 +49,7 @@ def _get_s3_client():
             aws_secret_access_key=R2_SECRET_ACCESS_KEY,
             config=Config(signature_version='s3v4')
         )
-    except ImportError:
+    except Exception:
         return None
 
 
@@ -106,46 +103,23 @@ def download_from_cloud(cloud_path: str, local_path: Path) -> bool:
 
 
 def read_csv_from_cloud(cloud_path: str) -> pd.DataFrame | None:
-    """Read CSV file from public R2 URL.
-    
-    Always reads from public URL. Users don't need API credentials.
-    
-    Args:
-        cloud_path: Cloud storage path to CSV file
-        
-    Returns:
-        DataFrame if successful, None otherwise (never raises exceptions)
-    """
+    """Read CSV from public URL (no auth needed)."""
     import urllib.request
     
     try:
-        public_url = f"https://pub-62707afd3ebb422aae744c63c49d36a0.r2.dev/{cloud_path}"
-        with urllib.request.urlopen(public_url, timeout=10) as response:
+        url = f"{R2_PUBLIC_URL}/{cloud_path}"
+        with urllib.request.urlopen(url, timeout=10) as response:
             return pd.read_csv(io.BytesIO(response.read()))
     except Exception:
         return None
 
 
 def write_csv_to_cloud(df: pd.DataFrame, cloud_path: str) -> bool:
-    """Write DataFrame to CSV file in public R2 bucket.
-    
-    Writes to public bucket (R2_PUBLIC_BUCKET_NAME) so it's accessible via public URL.
-    
-    Args:
-        df: DataFrame to write
-        cloud_path: Cloud storage path for CSV file
-        
-    Returns:
-        True if successful, False otherwise (never raises exceptions)
-    """
-    if not PUBLIC_BUCKET_ENABLED:
-        return False
-    
-    if boto3 is None or Config is None:
+    """Write CSV to public bucket (requires auth)."""
+    if not PUBLIC_BUCKET_ENABLED or not boto3 or not Config:
         return False
     
     try:
-        # Create S3 client for public bucket (same credentials as private)
         s3_client = boto3.client(
             's3',
             endpoint_url=f'https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com',
