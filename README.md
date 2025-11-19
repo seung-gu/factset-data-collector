@@ -197,12 +197,28 @@ R2 Bucket (factset-data)/
 ```
 
 **Environment Variables:**
-- `CI=true`: Auto-enables cloud storage in GitHub Actions
-- `CLOUD_STORAGE_ENABLED=true/false`: Manual override
+
+**For Read-Only Access (Public URL - No API Key Needed):**
+- `R2_PUBLIC_URL`: Public R2 URL for read-only access (optional)
+  - **Default**: `https://pub-62707afd3ebb422aae744c63c49d36a0.r2.dev` (pre-configured)
+  - Can be overridden via environment variable if needed
+  - Format: `https://pub-{account_id}.r2.dev` or custom domain
+  - Example: `export R2_PUBLIC_URL="https://pub-xxxxx.r2.dev"`
+  - Allows reading CSV files without API credentials
+  - **No setup needed**: Public URL is configured by default
+
+**For Write Access (Private Bucket - API Key Required):**
 - `R2_BUCKET_NAME`: Cloudflare R2 bucket name
 - `R2_ACCOUNT_ID`: Cloudflare account ID
 - `R2_ACCESS_KEY_ID`: R2 access key
 - `R2_SECRET_ACCESS_KEY`: R2 secret key
+- `CLOUD_STORAGE_ENABLED=true/false`: Manual override
+- `CI=true`: Auto-enables cloud storage in GitHub Actions
+
+**Usage:**
+- **PyPI users (read-only)**: Set only `R2_PUBLIC_URL` environment variable
+- **Developers/workflow (read/write)**: Set R2 credentials (R2_BUCKET_NAME, etc.)
+- **Local users**: No environment variables needed (uses local files)
 
 ## Output Format
 
@@ -268,19 +284,21 @@ Process PNG images with OCR and extract EPS data.
 
 ### Analysis Functions
 
-#### `calculate_pe_ratio(csv_path, price_data, type='forward', output_csv=None)`
+#### `calculate_pe_ratio(csv_path=None, price_data=None, type='forward', output_csv=None)`
 Calculate P/E ratios from EPS estimates.
 
 **Parameters:**
-- `csv_path` (Path): Path to CSV file containing EPS estimates
-- `price_data` (DataFrame | dict): Stock price data
+- `csv_path` (Path | str | None): Path to CSV file. If None, automatically loads from cloud
+  (extracted_estimates.csv) or local storage. Can be omitted when using public URL.
+- `price_data` (DataFrame | dict | None): Stock price data
   - DataFrame: columns `Date`, `Price`
   - Dict: mapping dates (YYYY-MM-DD) to prices
+  - None: Returns template DataFrame showing required format
 - `type` (str): Type of P/E ratio calculation
   - `'forward'`: Q[1:5] - Next 4 quarters after report date
   - `'mix'`: Q[0:4] - Report date and next 3 quarters
   - `'trailing-like'`: Q[-3:1] - Last 3 quarters before and report date
-- `output_csv` (Path, optional): Path to save results
+- `output_csv` (Path | str | None): Optional path to save results
 
 **Returns:** DataFrame with columns:
 - `Report_Date`: Report date
@@ -289,6 +307,27 @@ Calculate P/E ratios from EPS estimates.
 - `EPS_4Q_Sum`: 4-quarter EPS sum
 - `PE_Ratio`: Calculated P/E ratio
 - `Type`: Type of calculation
+
+**Usage Examples:**
+
+```python
+# Option 1: Using public URL (no API key needed, default configured)
+from factset_data_collector import calculate_pe_ratio
+
+# csv_path=None: automatically loads from public URL (default: pub-62707afd3ebb422aae744c63c49d36a0.r2.dev)
+pe_df = calculate_pe_ratio(
+    price_data={'2024-01-15': 150.5, '2024-02-15': 152.3},
+    type='forward'
+)
+
+# Option 2: Using local file
+pe_df = calculate_pe_ratio(
+    csv_path='output/extracted_estimates.csv',
+    price_data={'2024-01-15': 150.5},
+    type='forward',
+    output_csv='output/pe_ratios.csv'
+)
+```
 
 ## GitHub Actions Setup
 
