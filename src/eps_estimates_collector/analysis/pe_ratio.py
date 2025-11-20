@@ -12,9 +12,15 @@ import re
 import tempfile
 
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
+import logging
+
+# Suppress matplotlib font manager warnings
+logging.getLogger('matplotlib.font_manager').setLevel(logging.ERROR)
 
 from ..utils.csv_storage import read_csv
 
@@ -397,18 +403,6 @@ def plot_pe_ratio_with_price(
     
     # Set x-axis label on bottom subplot
     axes[-1].set_xlabel('Date', fontsize=11, fontweight='bold')
-    
-    # Add today's date at the bottom - make it highly visible
-    today_str = datetime.now().strftime('%Y-%m-%d')
-    axes[-1].text(0.99, -0.15, f'Last Updated: {today_str}', 
-                  transform=axes[-1].transAxes, 
-                  fontsize=14, 
-                  ha='right', 
-                  va='top',
-                  color='black',
-                  alpha=1.0,
-                  fontweight='bold',
-                  bbox=dict(boxstyle='round,pad=0.8', facecolor='white', edgecolor='black', linewidth=1.5, alpha=0.95))
     
     # Adjust layout
     plt.tight_layout(rect=[0, 0, 1, 0.98])

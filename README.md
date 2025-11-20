@@ -142,16 +142,16 @@ The complete workflow from PDF documents to final P/E ratio calculation:
 
 **Step 1: PDF Document** → Downloads FactSet Earnings Insight PDF reports
 
-<table>
+<table style="width: 100%; table-layout: fixed;">
 <tr>
 <td width="50%" style="vertical-align: top;">
 <strong>Step 2: EPS Chart Page Extraction</strong><br>
-<img src="output/preprocessing_test/20161209-6_original.png" alt="Original Chart" width="100%">
+<img src="output/preprocessing_test/20161209-6_original.png" alt="Original Chart" style="width: 100%; max-height: 400px; object-fit: contain; display: block;">
 <small><em></em></small>
 </td>
 <td width="50%" style="vertical-align: top;">
 <strong>Step 3: OCR Processing & Bar Classification</strong><br>
-<img src="output/preprocessing_test/20161209-6_bar_classification.png" alt="Bar Classification" width="100%">
+<img src="output/preprocessing_test/20161209-6_bar_classification.png" alt="Bar Classification" style="width: 100%; max-height: 400px; object-fit: contain; display: block;">
 <small><em>Red bars = Actual values, Magenta bars = Estimates</em></small>
 </td>
 </tr>
@@ -174,17 +174,17 @@ print(pe_df)
 📈 Loading S&P 500 price data from yfinance (2016-12-09 to 2025-11-20)...
 ✅ Loaded 2249 S&P 500 price points
      Report_Date  Price_Date        Price  EPS_4Q_Sum   PE_Ratio      Type
-0     2016-12-09  2016-12-09  2259.530029      122.28  18.478329  trailing
-1     2016-12-09  2016-12-12  2256.959961      122.28  18.457311  trailing
-2     2016-12-09  2016-12-13  2271.719971      122.28  18.578017  trailing
-3     2016-12-09  2016-12-14  2253.280029      122.28  18.427216  trailing
-4     2016-12-09  2016-12-15  2262.030029      122.28  18.498774  trailing
+0     2016-12-09  2016-12-09  2259.530029      117.49  19.231680  trailing
+1     2016-12-09  2016-12-12  2256.959961      117.49  19.209805  trailing
+2     2016-12-09  2016-12-13  2271.719971      117.49  19.335433  trailing
+3     2016-12-09  2016-12-14  2253.280029      117.49  19.178484  trailing
+4     2016-12-09  2016-12-15  2262.030029      117.49  19.252958  trailing
 ...          ...         ...          ...         ...        ...       ...
-2244  2025-11-07  2025-11-13  6737.490234      278.30  24.209451  trailing
-2245  2025-11-14  2025-11-14  6734.109863      278.84  24.150444  trailing
-2246  2025-11-14  2025-11-17  6672.410156      278.84  23.929171  trailing
-2247  2025-11-14  2025-11-18  6617.319824      278.84  23.731602  trailing
-2248  2025-11-14  2025-11-19  6642.160156      278.84  23.820686  trailing
+2244  2025-11-07  2025-11-13  6737.490234      266.73  25.259589  trailing
+2245  2025-11-14  2025-11-14  6734.109863      267.21  25.201564  trailing
+2246  2025-11-14  2025-11-17  6672.410156      267.21  24.970660  trailing
+2247  2025-11-14  2025-11-18  6617.319824      267.21  24.764492  trailing
+2248  2025-11-14  2025-11-19  6642.160156      267.21  24.857454  trailing
 
 [2249 rows x 6 columns]
 ```
@@ -382,6 +382,9 @@ R2_SECRET_ACCESS_KEY
   4. Upload to cloud (PDFs/PNGs → private, CSVs → public)
 
 ## Recent Updates
+
+### v0.3.1 (2025-11-20) - Fix matplotlib dependency
+- ✅ **Add matplotlib dependency**: Required for P/E ratio graph generation
 
 ### v0.3.0 (2025-11-20) - P/E Ratio API & Calculation Improvements
 - ✅ **API Rename**: `calculate_pe_ratio()` → `fetch_sp500_pe_ratio()` - clearer naming for S&P 500 specific function

@@ -1,6 +1,6 @@
 [project]
 name = "eps-estimates-collector"
-version = "0.3.0"
+version = "0.3.1"
 description = "Extract quarterly EPS estimates from FactSet Earnings Insight reports using OCR"
 readme = "README_PYPI.md"
 requires-python = ">=3.11"
@@ -21,6 +21,7 @@ classifiers = [
 dependencies = [
     "boto3>=1.28.0",
     "google-cloud-vision>=3.11.0",
+    "matplotlib>=3.7.0",
     "numpy>=1.24.0",
     "opencv-python-headless>=4.12.0.88",
     "pandas>=2.3.3",
@@ -46,6 +47,11 @@ packages = ["src/eps_estimates_collector"]
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "twine>=6.2.0",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["scripts/testing"]
