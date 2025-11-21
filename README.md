@@ -152,7 +152,7 @@ The complete workflow from PDF documents to final P/E ratio calculation:
 <td width="50%" style="vertical-align: top;">
 <strong>Step 3: OCR Processing & Bar Classification</strong><br>
 <img src="output/preprocessing_test/20161209-6_bar_classification.png" alt="Bar Classification" style="width: 100%; max-height: 400px; object-fit: contain; display: block;">
-<small><em>Red bars = Actual values, Magenta bars = Estimates</em></small>
+<small><em>Dark bars = Actual values, Light bars = Estimates</em></small>
 </td>
 </tr>
 </table>
