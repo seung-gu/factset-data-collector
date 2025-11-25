@@ -1,11 +1,16 @@
 """Test script for coordinate-based matching."""
 
+import sys
 from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from src.factset_report_analyzer.core.ocr.google_vision_processor import extract_text_with_boxes
 from src.factset_report_analyzer.core.ocr.coordinate_matcher import (
     match_quarters_with_numbers,
     find_quarters_at_bottom,
-    find_nearest_number_in_y_range,
     extract_number,
     extract_quarter_pattern,
     is_same_y_range,

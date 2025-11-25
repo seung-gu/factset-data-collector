@@ -1,7 +1,13 @@
 """Test script for bar graph classification using all three methods."""
 
+import sys
 import cv2
 from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from src.factset_report_analyzer.core.ocr.google_vision_processor import extract_text_with_boxes
 from src.factset_report_analyzer.core.ocr.coordinate_matcher import match_quarters_with_numbers
 from src.factset_report_analyzer.core.ocr.bar_classifier import classify_all_bars

@@ -46,9 +46,12 @@ factset-report-analyzer/
 │   │       └── coordinate_matcher.py
 │   ├── analysis/                    # P/E ratio calculation
 │   │   └── sp500.py
-│   └── utils/                       # Cloud storage
+│   └── utils/                       # Utilities
 │       ├── cloudflare.py            # R2 operations
-│       └── csv_storage.py           # CSV I/O
+│       ├── csv_storage.py           # CSV I/O
+│       └── plot/                    # Plotting utilities
+│           ├── time_series.py        # Time series plotting
+│           └── pe_ratio.py          # P/E ratio plotting
 ├── scripts/data_collection/         # CLI scripts
 ├── actions/workflow.py              # GitHub Actions
 └── pyproject.toml
@@ -112,9 +115,9 @@ The complete workflow from PDF documents to final P/E ratio calculation:
 │              🖼️  Step 2: EPS Chart Page Extraction                  │
 │                                                                     │
 │  PDF Document                                                       │
-│  └─> Extract EPS chart page (Page 6)                                │
+│  └─> Extract EPS chart page (Page 21)                               │
 │      └─> Convert to PNG image                                       │
-│          (e.g., 20161209-6.png)                                     │
+│          (e.g., 20161209.png)                                       │
 └─────────────────────────────────────────────────────────────────────┘
                             │
                             ▼
@@ -230,6 +233,67 @@ print(f"Current P/E: {current['pe_ratio']:.2f} on {current['date']}")
 **P/E Types:**
 - `forward`: Q(0) + Q(1) + Q(2) + Q(3) - Report date quarter and next 3 quarters
 - `trailing`: Q(-4) + Q(-3) + Q(-2) + Q(-1) - Last 4 quarters before report date
+
+### Plotting Time Series
+
+Generic time series plotting with optional sigma threshold highlighting:
+
+```python
+from factset_report_analyzer import SP500
+from factset_report_analyzer.utils.plot import plot_time_series
+from pathlib import Path
+
+# Get SP500 data
+sp500 = SP500()
+sp500.set_type('trailing')
+pe_df = sp500.pe_ratio.sort_values('Date')
+
+# Plot single series with sigma highlighting
+plot_time_series(
+    dates=pe_df['Date'],
+    values=pe_df['PE_Ratio'],
+    sigma=1.5,  # Highlight periods outside ±1.5σ
+    labels=['Trailing P/E Ratio'],
+    colors=['green'],
+    output_path=Path("output/pe_ratio_plot.png")
+)
+
+# Plot dual axis (price and P/E ratio)
+plot_time_series(
+    dates=pe_df['Date'],
+    values=[pe_df['Price'], pe_df['PE_Ratio']],
+    sigma=1.5,
+    sigma_index=1,  # Apply sigma to P/E ratio (second series)
+    labels=['S&P 500 Price', 'Trailing P/E Ratio'],
+    colors=['black', 'green'],
+    output_path=Path("output/price_pe_plot.png")
+)
+```
+
+**Features:**
+- Single or dual-axis plotting (up to 2 series)
+- Optional sigma threshold highlighting for outlier detection
+- Automatic legend with mean and ±σ lines
+- Customizable colors and labels
+
+### Plotting P/E Ratios
+
+```python
+from factset_report_analyzer.utils.plot import plot_pe_ratio_with_price
+from pathlib import Path
+
+# Generate and save P/E ratio plot
+plot_pe_ratio_with_price(
+    output_path=Path("output/pe_ratio_plot.png"),
+    std_threshold=1.5,  # Highlight periods outside ±1.5σ
+    figsize=(14, 12)
+)
+```
+
+The plot shows:
+- **Top panel**: S&P 500 Price with Trailing P/E Ratio (Q(-4)+Q(-3)+Q(-2)+Q(-1))
+- **Bottom panel**: S&P 500 Price with Forward P/E Ratio (Q(0)+Q(1)+Q(2)+Q(3))
+- **Highlighting**: Periods where P/E ratios are outside ±1.5σ range
 
 ## Architecture
 
@@ -396,6 +460,19 @@ pe_trailing = sp500.pe_ratio
 print(pe_trailing)
 ```
 
+### Plotting Functions
+
+For detailed API documentation, see function docstrings:
+- `plot_time_series()` - Generic time series plotting with sigma highlighting
+- `plot_pe_ratio_with_price()` - S&P 500 P/E ratio visualization
+
+```python
+# View help
+from factset_report_analyzer.utils.plot import plot_time_series, plot_pe_ratio_with_price
+help(plot_time_series)
+help(plot_pe_ratio_with_price)
+```
+
 ## GitHub Actions
 
 ### Setup Secrets
@@ -422,13 +499,21 @@ R2_SECRET_ACCESS_KEY
 
 ## Recent Updates
 
-### v0.4.1 (2025-11-21) - Bug Fixes
+### v0.4.3 (2025-11-25) - Plotting Module Refactoring
+- ✅ **Code Organization**: Moved plot functions to `utils/plot/` module for better separation of concerns
+  - `plot_time_series()` → `utils/plot/time_series.py` (generic time series plotting)
+  - `plot_pe_ratio_with_price()` → `utils/plot/pe_ratio.py` (P/E ratio specific plotting)
+- ✅ **Clean Architecture**: Analysis module now focuses on calculation logic only
+- ✅ **Improved Reusability**: Plot functions can be easily reused by other modules
+- ✅ **Documentation**: Added plotting examples and API reference to README
+
+### v0.4.1 (2025-11-23) - Bug Fixes
 - ✅ **Test Suite Fixes**: Updated test imports to use new `SP500` class instead of deprecated `calculate_pe_ratio` function
 - ✅ **Test Improvements**: Fixed Google credentials path checking and workflow step name validation
 - ✅ **Dependencies**: Added pytest and pytest-cov to dev dependencies for proper test execution
 - ✅ **Cleanup**: Removed outdated test file (`test_quarter_eps_sum.py`) that referenced deprecated functions
 
-### v0.4.0 (2025-11-21) - Package Rename & Refactoring
+### v0.4.0 (2025-11-23) - Package Rename & Refactoring
 - ✅ **Package Rename**: `eps-estimates-collector` → `factset-report-analyzer` - clearer naming reflecting FactSet report analysis focus
 - ✅ **Module Rename**: `analysis/pe_ratio.py` → `analysis/sp500.py` - better organization
 - ✅ **API Improvements**: Enhanced `SP500` class with better data caching and type switching

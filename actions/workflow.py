@@ -9,7 +9,6 @@ This script runs the full workflow:
 6. Generate and upload P/E ratio plot
 """
 
-import os
 import sys
 import tempfile
 from datetime import datetime

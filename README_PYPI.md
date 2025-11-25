@@ -52,9 +52,9 @@ The complete workflow from PDF documents to final P/E ratio calculation:
 │              🖼️  Step 2: EPS Chart Page Extraction                  │
 │                                                                     │
 │  PDF Document                                                       │
-│  └─> Extract EPS chart page (Page 6)                                │
+│  └─> Extract EPS chart page (Page 21)                               │
 │      └─> Convert to PNG image                                       │
-│          (e.g., 20161209-6.png)                                     │
+│          (e.g., 20161209.png)                                       │
 └─────────────────────────────────────────────────────────────────────┘
                             │
                             ▼
@@ -123,6 +123,67 @@ print(f"Current P/E: {current['pe_ratio']:.2f} on {current['date']}")
 - `forward`: Q(0) + Q(1) + Q(2) + Q(3) - Report date quarter and next 3 quarters
 - `trailing`: Q(-4) + Q(-3) + Q(-2) + Q(-1) - Last 4 quarters before report date
 
+### Plotting Time Series
+
+Generic time series plotting with optional sigma threshold highlighting:
+
+```python
+from factset_report_analyzer import SP500
+from factset_report_analyzer.utils.plot import plot_time_series
+from pathlib import Path
+
+# Get SP500 data
+sp500 = SP500()
+sp500.set_type('trailing')
+pe_df = sp500.pe_ratio.sort_values('Date')
+
+# Plot single series with sigma highlighting
+plot_time_series(
+    dates=pe_df['Date'],
+    values=pe_df['PE_Ratio'],
+    sigma=1.5,  # Highlight periods outside ±1.5σ
+    labels=['Trailing P/E Ratio'],
+    colors=['green'],
+    output_path=Path("output/pe_ratio_plot.png")
+)
+
+# Plot dual axis (price and P/E ratio)
+plot_time_series(
+    dates=pe_df['Date'],
+    values=[pe_df['Price'], pe_df['PE_Ratio']],
+    sigma=1.5,
+    sigma_index=1,  # Apply sigma to P/E ratio (second series)
+    labels=['S&P 500 Price', 'Trailing P/E Ratio'],
+    colors=['black', 'green'],
+    output_path=Path("output/price_pe_plot.png")
+)
+```
+
+**Features:**
+- Single or dual-axis plotting (up to 2 series)
+- Optional sigma threshold highlighting for outlier detection
+- Automatic legend with mean and ±σ lines
+- Customizable colors and labels
+
+### Plotting P/E Ratios
+
+```python
+from factset_report_analyzer.utils.plot import plot_pe_ratio_with_price
+from pathlib import Path
+
+# Generate and save P/E ratio plot
+plot_pe_ratio_with_price(
+    output_path=Path("output/pe_ratio_plot.png"),
+    std_threshold=1.5,  # Highlight periods outside ±1.5σ
+    figsize=(14, 12)
+)
+```
+
+The plot shows:
+- **Top panel**: S&P 500 Price with Trailing P/E Ratio (Q(-4)+Q(-3)+Q(-2)+Q(-1))
+- **Bottom panel**: S&P 500 Price with Forward P/E Ratio (Q(0)+Q(1)+Q(2)+Q(3))
+- **Highlighting**: Periods where P/E ratios are outside ±1.5σ range
+
 ### Example: P/E Ratio Calculation Result
 
 ```python
@@ -187,6 +248,19 @@ sp500 = SP500()
 - ✅ No local files needed
 - ✅ Auto-loads S&P 500 prices from yfinance
 - ✅ Caches data for efficient repeated access
+
+#### Plotting Functions
+
+For detailed API documentation, see function docstrings:
+- `plot_time_series()` - Generic time series plotting with sigma highlighting
+- `plot_pe_ratio_with_price()` - S&P 500 P/E ratio visualization
+
+```python
+# View help
+from factset_report_analyzer.utils.plot import plot_time_series, plot_pe_ratio_with_price
+help(plot_time_series)
+help(plot_pe_ratio_with_price)
+```
 
 ## Legal Disclaimer
 

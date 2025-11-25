@@ -8,7 +8,7 @@ import json
 import tempfile
 from pathlib import Path
 
-from src.factset_report_analyzer.analysis.sp500 import plot_pe_ratio_with_price
+from src.factset_report_analyzer.utils.plot import plot_pe_ratio_with_price
 from src.factset_report_analyzer.utils.cloudflare import upload_file_to_public_cloud
 
 

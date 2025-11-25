@@ -1,6 +1,6 @@
 [project]
 name = "factset-report-analyzer"
-version = "0.4.1"
+version = "0.4.3"
 description = "Extract quarterly EPS estimates from FactSet Earnings Insight reports using OCR and calculate S&P 500 P/E ratios"
 readme = "README_PYPI.md"
 requires-python = ">=3.11"
